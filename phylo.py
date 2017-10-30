@@ -173,6 +173,30 @@ def make_tour(i, euler_tour, euler_weights, lev, levels, weights, tree, order):
 
 def parse_file():
     '''
+    Main function that performs queries for distance between two nodes in
+    n-ary tree. It also performs updates of weights.
+
+    Both operations have complexity O(log n). Creation of necessary data
+    structures is of complexity O(n log n).
+
+    Reads instructions from a file in a format:
+
+    First line:
+    k m - where:
+        k - number of nodes in tree;
+        m - number of queries and updates;
+
+    k lines:
+    x y - where:
+        x - index of a node of which i+1 is a child;
+        y - weight of x
+
+    m lines:
+    a x y - where:
+        a - character symbolizing query or update ('q' or 'u' respectively)
+        x - index of node to update if a == 'u', otherwise index of first node
+        y - new weight of node if a == 'u', otherwise index of second node
+
     '''
     # ===========INITIALIZE DATA STRUCTURES=============
     line = sys.stdin.readline().split()
@@ -194,28 +218,24 @@ def parse_file():
 
     make_tour(1, euler_tour, euler_weights, 0, euler_levels, weights, tree, order)
 
-    print("Order:")
-    print(order)
-
-    print("\nEuler tour:")
-    print(euler_tour)
-
-    # pozbywam się wag dotyczących korzenia
+    # remove the weights of root
     euler_weights = euler_weights[1:-1]
 
-    pierwsze_wyst = []
+
+    first_occurences = [] # index of first occurence of each node in euler tour
     for i in range(len(tree)):
-        pierwsze_wyst.append([])
+        first_occurences.append([])
 
     for i in range(len(euler_tour)):
-        pierwsze_wyst[euler_tour[i] - 1].append(i)
+        first_occurences[euler_tour[i] - 1].append(i)
+
+    # create trees used for queries and updates
 
     level_tree = intTreeMin(len(euler_tour))
+    weight_tree = intTreeSum(len(euler_tour))
 
     for i in range(len(euler_levels)):
         level_tree.insert(i, euler_tour[i], val=euler_levels[i])
-
-    weight_tree = intTreeSum(len(euler_tour))
 
     for i in range(len(euler_weights)):
         weight_tree.insert(i, val=euler_weights[i])
@@ -232,16 +252,17 @@ def parse_file():
         line = sys.stdin.readline().split()
         if line[0] == 'q':
 
-            # pierwsze wystąpienia poszczególnych węzłów w obiegu Eulera
-            first_i = pierwsze_wyst[int(line[1]) - 1][0]
-            second_i = pierwsze_wyst[int(line[2]) - 1][0]
+            # Find indexes of first occurence of each node in Euler's tour
+            first_i = first_occurences[int(line[1]) - 1][0]
+            second_i = first_occurences[int(line[2]) - 1][0]
 
             mini = min(first_i, second_i)
             maks = max(first_i, second_i)
 
+            # Find LCA of the two nodes
             lca = level_tree.query_min(mini, maks)
-            # pierwsze wystąpnienie lca w obiegu Eulera
-            lca_i = pierwsze_wyst[lca[1] - 1][0]
+
+            lca_i = first_occurences[lca[1] - 1][0]
 
             first_query_min = min(lca_i, first_i)
             first_query_max = max(lca_i, first_i)
@@ -249,17 +270,19 @@ def parse_file():
             second_query_min = min(lca_i, second_i)
             second_query_max = max(lca_i, second_i)
 
-            # -1, bo nie wliczam prawego końca przedziału
+            # We have to substract one from the bounds of the intervals, because
+            # we don't want to add weight of the edge to each of the nodes.
             first = weight_tree.query(first_query_min, first_query_max - 1)
             second = weight_tree.query(second_query_min, second_query_max - 1)
 
             print(first + second)
 
+        # ==========UPDATE==========
         else:
-            # pierwsza część zawiera drogę w dół
+            # Fix the downward path in the weight tree
             weight_tree.update(edges[int(line[1]) - 1][0] - 1, int(line[2]))
 
-            # druga część zawiera drogę powrotną
+            # Fix the corresponding upward path in the tree
             weight_tree.update(edges[int(line[1]) - 1][1] - 1, -int(line[2]))
 
 
